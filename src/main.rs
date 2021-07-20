@@ -1,54 +1,33 @@
-mod snakegame;
-mod view;
-mod snake;
+mod gamestate;
+mod gamescene;
+mod actors;
 mod common;
 
-use macroquad::prelude as mq;
-use snakegame::*;
-use view::*;
+use macroquad::prelude::*;
+use gamestate::*;
+
+const WIDTH: f32 = 20.0;
+const HEIGHT: f32 = 20.0;
+const GRID_SIZE: f32 = 32.0;
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    mq::rand::srand(49152);
-    let mut game = SnakeGame::new();
-    let mut view = View::new(33, 25, 24);
+    rand::srand(49152);
+    let mut game = GameState::new(WIDTH, HEIGHT, GRID_SIZE);
+    game.load().await;
 
     loop {
-        match &game.state {
-            GameState::Start => {
-                game.reset(&mut view);
-            },
-            GameState::GetReady => {
-                game.update_view(&mut view);
-                game.draw(&view);
-                if view.state == ViewState::Ready {
-                    game.state = GameState::Playing;
-                }
-            },
-            GameState::Playing => {
-                game.handle_input();
-                game.update_data(&view);
-                game.check_collision(&view);
-                game.update_view(&mut view);
-                game.draw(&view);
-            },
-            GameState::GameOver => { 
-                game.handle_input();
-                game.update_view(&mut view);
-                game.draw(&view);
-            },
-            _ => { }
-        }
-
-        mq::next_frame().await;
+        game.update();
+        game.draw();
+        next_frame().await;
     }
 }
 
-fn window_conf() -> mq::Conf {
-    mq::Conf {
+fn window_conf() -> Conf {
+    Conf {
         window_title: "Snake".to_owned(),
-        window_width: 800,
-        window_height: 600,
+        window_width: (WIDTH * GRID_SIZE) as i32,
+        window_height: (HEIGHT * GRID_SIZE) as i32, 
         window_resizable: false,
         ..Default::default()
     }
