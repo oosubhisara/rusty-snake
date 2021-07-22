@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use macroquad::prelude::*;
-use macroquad::audio::*;
+use crate::assets::*;
 use crate::gamescene::*;
 use crate::actors::*;
 use crate::common::*;
@@ -14,12 +14,10 @@ pub enum GameSubState {
 }
 
 pub struct GameState {
+    assets: Assets,
     game_scene: GameScene,
     snake: Snake,
     apples: Vec<Apple>,
-    textures: HashMap<String, Texture2D>,
-    sounds: HashMap<String, Sound>,
-    font: Option<Font>,
     spawn_timer: Timer,
     delay_timer: Timer,
     pub substate: GameSubState,
@@ -31,26 +29,28 @@ impl GameState {
     const SPAWN_TIME: f32 = 2.0;
     const MAX_APPLES: usize = 3;
 
-    pub fn new(width: f32, height: f32, grid_size: f32) 
-            -> GameState {
+    pub fn new(width: f32, height: f32, grid_size: f32) -> GameState {
+        let mut assets = Assets::new();
+
         let game_scene = GameScene::new(width, height, grid_size);
-        let mut snake = Snake::new(
-            GameState::SNAKE_INITIAL_X, GameState::SNAKE_INITIAL_Y);
+        let mut snake = Snake::new(GameState::SNAKE_INITIAL_X, 
+                GameState::SNAKE_INITIAL_Y);
         snake.set_bound(
             &Rect::new(1.0, 1.0, 
-                       game_scene.get_width() as f32 - 2.0, 
-                       game_scene.get_height() as f32 - 2.0)
+            game_scene.get_width() as f32 - 2.0, 
+            game_scene.get_height() as f32 - 2.0)
         );
         let apples = Vec::new();
-        let textures = HashMap::new();
-        let sounds = HashMap::new();
-        let font = None; 
         let spawn_timer = Timer::new(GameState::SPAWN_TIME); 
         let delay_timer = Timer::new(Snake::STUN_INTERVAL); 
         let substate = GameSubState::GetReady;
 
-        GameState { game_scene, snake, apples, textures, sounds, font, 
+        GameState { assets, game_scene, snake, apples,
                     spawn_timer, delay_timer, substate }
+    }
+
+    pub async fn load(&mut self) {
+        self.assets.load().await;
     }
 
     pub fn reset(&mut self) {
@@ -63,59 +63,24 @@ impl GameState {
         self.substate = GameSubState::GetReady;
     }
 
-    pub async fn load(&mut self) {
-        self.load_texture("wall", "assets/images/wall.png").await;
-        self.load_sound("move", "assets/sounds/move.wav").await;
-        self.load_sound("eat", "assets/sounds/eat.wav").await;
-        self.load_sound("dead", "assets/sounds/dead.wav").await;
-        self.font = Some(
-            load_ttf_font("assets/fonts/FiraSans-Bold.ttf").await.unwrap());
-    }
-
-    async fn load_texture(&mut self, key: &str, filename: &str) {
-        let result = load_texture(filename).await;
-        match result {
-            Ok(x) => {
-                x.set_filter(FilterMode::Nearest);
-               self.textures.insert(String::from(key), x);
-            },
-            Err(_e) => {
-                panic!("Error loading texture: {}", filename);
-            }
-        }
-    }
-
-    async fn load_sound(&mut self, key: &str, filename: &str) {
-        let result = load_sound(filename).await;
-        match result {
-            Ok(x) => {
-               self.sounds.insert(String::from(key), x);
-            },
-            Err(_e) => {
-                panic!("Error loading sound: {}", filename);
-            }
-        }
-    }
-
     pub fn handle_input(&mut self) {
         match self.substate {
             GameSubState::Playing => {
-                let mut dir_changed = false;
-                if is_key_down(KeyCode::Up) {
-                    dir_changed = self.snake.set_direction(Direction::UP);
-                }
-                else if is_key_down(KeyCode::Down) {
-                    dir_changed = self.snake.set_direction(Direction::DOWN);
-                }
-                else if is_key_down(KeyCode::Left) {
-                    dir_changed = self.snake.set_direction(Direction::LEFT);
-                }
-                else if is_key_down(KeyCode::Right) {
-                    dir_changed = self.snake.set_direction(Direction::RIGHT);
-                }
+                let dir_changed = 
+                    if is_key_down(KeyCode::Up) {
+                        self.snake.set_direction(Direction::Up)
+                    } else if is_key_down(KeyCode::Down) {
+                        self.snake.set_direction(Direction::Down)
+                    } else if is_key_down(KeyCode::Left) {
+                        self.snake.set_direction(Direction::Left)
+                    } else if is_key_down(KeyCode::Right) {
+                        self.snake.set_direction(Direction::Right)
+                    } else {
+                        false
+                    };
 
                 if dir_changed {
-                    self.play_sound("move");
+                    self.assets.play_sound(SoundId::Move);
                 }
             },
             GameSubState::GameOver => {
@@ -157,7 +122,7 @@ impl GameState {
         let width: f32 = screen_width() as f32;
         let height: f32 = screen_height() as f32;
         let text_params = TextParams {
-            font: self.font.unwrap(),
+            font: *self.assets.get_font(FontId::Main),
             font_size: 48,
             font_scale: 1.0,
             font_scale_aspect: 1.0,
@@ -165,16 +130,17 @@ impl GameState {
         };
 
         clear_background(Color::new(0.325, 0.133, 0.067, 1.0));
+
         // Draw scene
-        self.game_scene.draw(self.get_texture("wall"));
+        self.game_scene.draw(self.assets.get_texture(TextureId::Wall));
 
         // Draw snake
-        self.snake.draw(&self.game_scene);
+        self.snake.draw(&self.assets.get_texture(TextureId::Snake), 
+                        &self.game_scene);
 
         // Draw apples
-        for apple in &self.apples {
-            let color = Color::new(1.0, 0.0, 0.0, apple.alpha);
-            self.game_scene.draw_circle(&apple.pos, &color);
+        for apple in &mut self.apples {
+            apple.draw(&self.game_scene);
         }
 
         // Draw get ready text
@@ -205,13 +171,11 @@ impl GameState {
 
         if self.snake.update() {
             if !self.snake.is_alive() {
-                self.play_sound("dead");
-                //play_sound_once(self.sounds[2]);
+                self.assets.play_sound(SoundId::Dead);
                 self.substate = GameSubState::Stunned;
             } else {
                 if self.snake.eat_apples(&mut self.apples) {
-                    self.play_sound("eat");
-                    //play_sound_once(self.sounds[1]);
+                    self.assets.play_sound(SoundId::Eat);
                 }
             }
         }
@@ -248,16 +212,5 @@ impl GameState {
             let apple = Apple::new(&pos);
             self.apples.push(apple);  // add to apple list
         }
-    }
-
-    fn play_sound(&self, key: &str) {
-        let sound: &Sound = self.sounds.get(&String::from(key)).unwrap();
-        play_sound_once(*sound);
-    }
-
-    fn get_texture(&self, key: &str) -> &Texture2D {
-        let texture: &Texture2D = self.textures.get(
-            &String::from(key)).unwrap();
-        texture
     }
 }

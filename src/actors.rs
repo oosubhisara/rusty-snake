@@ -22,15 +22,31 @@ impl Apple {
             self.alpha = 1.0;
         }
     }
+
+    pub fn draw(&mut self, scene: &GameScene) {
+        let color = Color::new(1.0, 0.0, 0.0, self.alpha);
+        scene.draw_circle(&self.pos, &color);
+    }
 }
 
 //=============================================================================
 //    Snake
 //=============================================================================
+#[derive(Clone)]
+struct SnakePart {
+    pos: Vec2,
+    dir: Direction
+}
+
+impl SnakePart {
+    fn new(pos: Vec2, dir: Direction) -> SnakePart {
+        SnakePart { pos, dir }
+    }
+}
+
 pub struct Snake {
-    parts: LinkedList<Vec2>,
-    removed_part: Option<Vec2>,
-    dir: Direction, 
+    parts: LinkedList<SnakePart>,
+    removed_part: Option<SnakePart>,
     new_dir: Direction,
     speed: f32,
     timer: Timer,
@@ -46,42 +62,45 @@ impl Snake {
     const SLOW_DYING_INTERVAL: f32 = 0.8;
 
     pub fn new(x: f32, y: f32) -> Snake {
-        let parts: LinkedList<Vec2> = LinkedList::new(); 
+        let parts: LinkedList<SnakePart> = LinkedList::new(); 
         let removed_part = None;
-        let dir = Direction::NONE;
-        let new_dir = Direction::NONE;
+        let new_dir = Direction::Right;
         let speed = 0.0; 
         let timer = Timer::new(0.0);
         let alive = true;
         let bound = Rect::new(0.0, 0.0, 0.0, 0.0);
 
-        let mut snake = Snake { parts, removed_part, dir, new_dir, 
-                            speed, timer, alive, bound };
+        let mut snake = Snake { parts, removed_part, new_dir, 
+                                speed, timer, alive, bound };
         snake.reset(x, y);
         snake
     }
 
     pub fn reset(&mut self, x: f32, y: f32) {
         self.parts.clear();
-        self.parts.push_back( Vec2::new(x, y) );
-        self.parts.push_back( Vec2::new(x - 1.0, y) );
-        self.parts.push_back( Vec2::new(x - 2.0, y) );
-        self.dir = Direction::RIGHT;
-        self.new_dir = Direction::RIGHT;
+        self.parts.push_back(
+            SnakePart::new(Vec2::new(x, y), Direction::Right) );
+        self.parts.push_back( 
+            SnakePart::new(Vec2::new(x - 1.0, y), Direction::Right) );
+        self.parts.push_back( 
+            SnakePart::new(Vec2::new(x - 2.0, y), Direction::Right) );
+        self.new_dir = Direction::Right;
         self.speed = Snake::INITIAL_SPEED; 
         self.timer = Timer::new(1.0 / self.speed); 
         self.alive = true;
     }
 
-    pub fn set_bound(&mut self, rect: &Rect) {
+    pub fn set_bound(&mut self, rect: &Rect) -> &Snake {
         self.bound = Rect::new(rect.x, rect.y, rect.w, rect.h);
+        self 
     }
 
     pub fn set_direction(&mut self, dir: Direction) -> bool {
         let mut dir_changed = false;
-        let invalid_dir = get_opposite_dir(self.dir); 
+        let current_dir = self.get_current_dir();
+        let invalid_dir = get_opposite_dir(current_dir); 
 
-        if dir != self.dir && dir != invalid_dir {
+        if dir != current_dir && dir != invalid_dir {
             self.new_dir = dir;
             dir_changed = true;
         }
@@ -95,9 +114,13 @@ impl Snake {
 
     pub fn get_position(&self) -> Vec2 {
         match self.parts.front() {
-            Some(pt) => Vec2::new(pt.x, pt.y),
+            Some(part) => part.pos, 
             None => Vec2::new(-1.0, -1.0), 
         }
+    }
+
+    fn get_current_dir(&self) -> Direction {
+        self.parts.front().unwrap().dir
     }
 
     pub fn get_new_position(&self) -> Vec2 {
@@ -108,7 +131,7 @@ impl Snake {
 
     pub fn is_position_overlapped(&self, pos: &Vec2) -> bool {
         for part in &self.parts {
-            if pos == part {
+            if *pos == part.pos {
                 return true;
             }
         }
@@ -116,10 +139,11 @@ impl Snake {
     }
 
     fn restore_removed_path(&mut self) {
-        match &self.removed_part {
-            Some(p) => {
-                let part = Vec2::new(p.x, p.y);
-                self.parts.push_back(part);
+        match &mut self.removed_part {
+            Some(part) => {
+                let restored_part = part.clone();
+                self.parts.push_back(restored_part);
+                self.removed_part = None;
             },
             None => { }
         }
@@ -161,7 +185,7 @@ impl Snake {
 
         // Check collision with tail
         for part in &self.parts {
-            if &pos == part {
+            if pos == part.pos {
                 println!("You ran into your tail and died at ({},{})", 
                          pos.x, pos.y);
                 self.dead();
@@ -193,9 +217,9 @@ impl Snake {
 
             // Update 
             if self.alive {  // If it's still alive after collision check
-                self.dir = self.new_dir;  // Update direction
-                let new_pos = self.get_new_position();  // Update position 
-                self.parts.push_front(new_pos);  // Update parts
+                let new_head = SnakePart::new(
+                    self.get_new_position(), self.new_dir);
+                self.parts.push_front(new_head); 
                 let removed_part = self.parts.pop_back().unwrap();
                 self.removed_part = Some(removed_part);
             }
@@ -215,18 +239,29 @@ impl Snake {
         self.parts.len() != 0
     }
 
-    pub fn draw(&self, game_scene: &GameScene) {
-        let mut head = true;
-        let head_color = Color::new(0.0, 1.0, 0.0, 1.0); 
-        let body_color = Color::new(0.0, 0.7, 0.0, 1.0);
+    pub fn draw(&self, texture: &Texture2D, scene: &GameScene) {
+        let mut part_index: u32 = 0;
 
         for part in &self.parts {
-            if head {
-                head = false;
-                game_scene.draw_block(part, &head_color);
-            } else {
-                game_scene.draw_block(part, &body_color);
-            }
+            let frame_index: f32 = 
+                if part_index == 0 {
+                    2.0
+                } else if part_index == self.parts.len() as u32 - 1 {
+                    0.0
+                } else {
+                    1.0
+                };
+
+            let rotation: f32 = match part.dir {
+                Direction::Up => 3.14 + 3.14 * 0.5,
+                Direction::Right => 0.0, 
+                Direction::Down => 3.14 * 0.5,
+                Direction::Left => 3.14,
+            };
+
+            scene.draw_texture_by_index(texture, 16.0, frame_index, 
+                                        &part.pos, &WHITE, rotation);
+            part_index += 1;
         }
     }
 }

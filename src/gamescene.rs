@@ -149,12 +149,30 @@ impl GameScene {
                     *color);
     }
 
-    pub fn draw_texture(&self, texture: &Texture2D, pos: &Vec2, color: &Color) {
+    pub fn draw_texture(&self, texture: &Texture2D, pos: &Vec2, 
+                        color: &Color) {
         let draw_pos = self.to_view_coord(pos);
         let mut draw_params: DrawTextureParams = DrawTextureParams::default();
         draw_params.dest_size = Some(
-            Vec2::new(self.grid_size, self.grid_size));
+            Vec2::new(self.grid_size, self.grid_size)
+        );
         draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
     }
+
+    pub fn draw_texture_by_index(&self, texture: &Texture2D, src_size: f32,
+                                 atlas_index: f32, pos: &Vec2, 
+                                 color: &Color, rotation: f32) {
+        let draw_pos = self.to_view_coord(pos);
+        let mut draw_params: DrawTextureParams = DrawTextureParams::default();
+        draw_params.source = Some(
+            Rect::new((atlas_index * src_size) as f32, 0.0, src_size, src_size)
+        ); 
+        draw_params.dest_size = Some(
+            Vec2::new(self.grid_size, self.grid_size)
+        );
+        draw_params.rotation = rotation;
+        draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
+    }
+
 }
 

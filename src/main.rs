@@ -1,3 +1,4 @@
+mod assets;
 mod gamestate;
 mod gamescene;
 mod actors;

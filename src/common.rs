@@ -57,26 +57,24 @@ impl Line {
 //=============================================================================
 #[derive(Copy, Clone, PartialEq)]
 pub enum Direction {
-    NONE, UP, DOWN, LEFT, RIGHT 
+    Up, Down, Left, Right 
 }
 
 pub fn dir_to_vec2(dir: Direction) -> Vec2 {
     match dir {
-        Direction::NONE => Vec2::new(0.0, 0.0), 
-        Direction::UP => Vec2::new(0.0, -1.0), 
-        Direction::DOWN => Vec2::new(0.0, 1.0), 
-        Direction::LEFT => Vec2::new(-1.0, 0.0), 
-        Direction::RIGHT => Vec2::new(1.0, 0.0) 
+        Direction::Up => Vec2::new(0.0, -1.0), 
+        Direction::Down => Vec2::new(0.0, 1.0), 
+        Direction::Left => Vec2::new(-1.0, 0.0), 
+        Direction::Right => Vec2::new(1.0, 0.0) 
     }
 }
 
 pub fn get_opposite_dir(dir: Direction) -> Direction {
     match dir {
-        Direction::UP => Direction::DOWN,
-        Direction::DOWN => Direction::UP, 
-        Direction::LEFT =>  Direction::RIGHT,
-        Direction::RIGHT => Direction::LEFT,
-        _ => Direction::NONE
+        Direction::Up => Direction::Down,
+        Direction::Down => Direction::Up, 
+        Direction::Left =>  Direction::Right,
+        Direction::Right => Direction::Left,
     }
 }
 
