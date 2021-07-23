@@ -10,6 +10,7 @@ use gamestate::*;
 const WIDTH: f32 = 20.0;
 const HEIGHT: f32 = 20.0;
 const GRID_SIZE: f32 = 32.0;
+const STATUS_HEIGHT: i32 = 64;
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -28,7 +29,7 @@ fn window_conf() -> Conf {
     Conf {
         window_title: "Snake".to_owned(),
         window_width: (WIDTH * GRID_SIZE) as i32,
-        window_height: (HEIGHT * GRID_SIZE) as i32, 
+        window_height: (HEIGHT * GRID_SIZE) as i32 + STATUS_HEIGHT, 
         window_resizable: false,
         ..Default::default()
     }

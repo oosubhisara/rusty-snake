@@ -32,6 +32,21 @@ impl Apple {
 //=============================================================================
 //    Snake
 //=============================================================================
+struct SnakeFrame;
+
+impl SnakeFrame {
+    const TAIL: f32 = 0.0; 
+    const BODY: f32 = 1.0;
+    const HEAD: f32 = 2.0;
+    const CORNER_NW: f32 = 3.0;
+    const CORNER_NE: f32 = 4.0;
+    const CORNER_SW: f32 = 5.0;
+    const CORNER_SE: f32 = 6.0;
+    const TONGUE_1: f32 = 7.0;
+    const TONGUE_2: f32 = 8.0;
+    const DEAD_HEAD: f32 = 9.0;
+}
+
 #[derive(Clone)]
 struct SnakePart {
     pos: Vec2,
@@ -47,6 +62,7 @@ impl SnakePart {
 pub struct Snake {
     parts: LinkedList<SnakePart>,
     removed_part: Option<SnakePart>,
+    tongue_anim_flag: bool,
     new_dir: Direction,
     speed: f32,
     timer: Timer,
@@ -57,20 +73,21 @@ pub struct Snake {
 impl Snake {
     const INITIAL_SPEED: f32 = 5.0;
     const MAX_SPEED: f32 = 10.0;
-    pub const STUN_INTERVAL: f32 = 0.5;
-    const FAST_DYING_INTERVAL: f32 = 0.3;
-    const SLOW_DYING_INTERVAL: f32 = 0.8;
+    pub const STUN_INTERVAL: f32 = 0.8;
+    const NORMAL_DYING_INTERVAL: f32 = 0.15;
+    const FAST_DYING_INTERVAL: f32 = 0.05;
 
     pub fn new(x: f32, y: f32) -> Snake {
         let parts: LinkedList<SnakePart> = LinkedList::new(); 
         let removed_part = None;
+        let tongue_anim_flag = false;
         let new_dir = Direction::Right;
         let speed = 0.0; 
         let timer = Timer::new(0.0);
         let alive = true;
         let bound = Rect::new(0.0, 0.0, 0.0, 0.0);
 
-        let mut snake = Snake { parts, removed_part, new_dir, 
+        let mut snake = Snake { parts, removed_part, tongue_anim_flag, new_dir, 
                                 speed, timer, alive, bound };
         snake.reset(x, y);
         snake
@@ -112,15 +129,19 @@ impl Snake {
         self.alive
     }
 
+    pub fn get_length(&self) -> u32 {
+        self.parts.len() as u32
+    }
+
+    pub fn get_speed(&self) -> f32 {
+        self.speed
+    }
+
     pub fn get_position(&self) -> Vec2 {
         match self.parts.front() {
             Some(part) => part.pos, 
             None => Vec2::new(-1.0, -1.0), 
         }
-    }
-
-    fn get_current_dir(&self) -> Direction {
-        self.parts.front().unwrap().dir
     }
 
     pub fn get_new_position(&self) -> Vec2 {
@@ -136,6 +157,10 @@ impl Snake {
             }
         }
         return false;
+    }
+
+    fn get_current_dir(&self) -> Direction {
+        self.parts.front().unwrap().dir
     }
 
     fn restore_removed_path(&mut self) {
@@ -199,13 +224,13 @@ impl Snake {
         let length: f32  = self.parts.len() as f32;
 
         let interval: f32;
-        if length <= 5.0 {
-            interval = Snake::FAST_DYING_INTERVAL;
+        if length < 10.0 {
+            interval = Snake::NORMAL_DYING_INTERVAL;
         } else {
-            interval = Snake::SLOW_DYING_INTERVAL;
+            interval = Snake::FAST_DYING_INTERVAL;
         }
 
-        self.timer.set(interval / length);
+        self.timer.set(interval);
     }
 
     pub fn update(&mut self) -> bool {
@@ -217,6 +242,7 @@ impl Snake {
 
             // Update 
             if self.alive {  // If it's still alive after collision check
+                self.tongue_anim_flag = !self.tongue_anim_flag;
                 let new_head = SnakePart::new(
                     self.get_new_position(), self.new_dir);
                 self.parts.push_front(new_head); 
@@ -239,29 +265,105 @@ impl Snake {
         self.parts.len() != 0
     }
 
-    pub fn draw(&self, texture: &Texture2D, scene: &GameScene) {
-        let mut part_index: u32 = 0;
+    pub fn draw_basic(&self, scene: &GameScene) {
+        let mut is_head = true;
+        let mut color: Color = GREEN;
 
         for part in &self.parts {
-            let frame_index: f32 = 
-                if part_index == 0 {
-                    2.0
-                } else if part_index == self.parts.len() as u32 - 1 {
-                    0.0
-                } else {
-                    1.0
-                };
+            scene.draw_block(&part.pos, &color);
+            if is_head { 
+                is_head = false;
+                color = DARKGREEN;
+            } 
+        }
+    }
 
-            let rotation: f32 = match part.dir {
-                Direction::Up => 3.14 + 3.14 * 0.5,
-                Direction::Right => 0.0, 
-                Direction::Down => 3.14 * 0.5,
-                Direction::Left => 3.14,
-            };
+    pub fn draw(&self, texture: &Texture2D, scene: &GameScene) {
+        let length: u32 = self.parts.len() as u32;
+        if length == 0 {
+            return
+        }
+
+        let mut frame_index: f32;
+        let mut rotation: f32;
+        let mut prev_dir: Option<Direction> = None;
+        let mut part_index: u32 = 0;
+        let tail: u32 = length - 1;
+
+        for part in &self.parts {
+            match &mut prev_dir {
+                Some(d) => { }, 
+                None => prev_dir = Some(part.dir)
+            }
+
+            if part.dir == prev_dir.unwrap() || part_index == tail {
+                if part_index == 0 {
+                    if self.alive {
+                        frame_index = SnakeFrame::HEAD;
+                    } else {
+                        frame_index = SnakeFrame::DEAD_HEAD;
+                    }
+                    rotation = self.get_rotation_from_direction(&part.dir);
+                } else if part_index == tail {
+                    frame_index = SnakeFrame::TAIL; 
+                    rotation = self.get_rotation_from_direction(
+                               &prev_dir.unwrap());
+                } else {
+                    frame_index = SnakeFrame::BODY;
+                    rotation = self.get_rotation_from_direction(&part.dir);
+                }
+            } else {  // Corners
+                frame_index = self.get_corner_frame_index(
+                    &prev_dir.unwrap(), &part.dir);  
+                rotation = 0.0;
+                prev_dir = Some(part.dir);
+            }
 
             scene.draw_texture_by_index(texture, 16.0, frame_index, 
                                         &part.pos, &WHITE, rotation);
             part_index += 1;
+        }
+
+        // Draw tongue
+        frame_index = match self.tongue_anim_flag {
+            false => SnakeFrame::TONGUE_1,
+            true => SnakeFrame::TONGUE_2,
+        };
+        let cur_dir = self.get_current_dir(); 
+        let tongue_pos = self.get_position() + dir_to_vec2(cur_dir); 
+        let tongue_rotation = self.get_rotation_from_direction(&cur_dir);
+        scene.draw_texture_by_index(texture, 16.0, frame_index, 
+                                    &tongue_pos, &WHITE, tongue_rotation);
+    }
+
+    fn get_rotation_from_direction(&self, dir: &Direction) -> f32 {
+        match dir {
+            Direction::Up => 3.14 + 3.14 * 0.5,
+            Direction::Right => 0.0, 
+            Direction::Down => 3.14 * 0.5,
+            Direction::Left => 3.14,
+        }
+    }
+
+    fn get_corner_frame_index(&self, prev_dir: &Direction, dir: &Direction) 
+            -> f32 {
+        match prev_dir {
+            Direction::Up => {
+                if *dir == Direction::Left { SnakeFrame::CORNER_SW }
+                else { SnakeFrame::CORNER_SE }
+            },
+            Direction::Down => {
+                if *dir == Direction::Left { SnakeFrame::CORNER_NW }
+                else { SnakeFrame::CORNER_NE }
+            },
+            Direction::Left => {
+                if *dir == Direction::Up { SnakeFrame::CORNER_NE }
+                else { SnakeFrame::CORNER_SE }
+            },
+            Direction::Right => {
+                if *dir == Direction::Up { SnakeFrame::CORNER_NW }
+                else { SnakeFrame::CORNER_SW }
+            }
         }
     }
 }

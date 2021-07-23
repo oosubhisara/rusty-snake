@@ -95,6 +95,11 @@ impl GameScene {
         self.draw_texture_borders(texture);
     }
 
+    pub fn draw_basic(&self) {
+        self.draw_grid();
+        self.draw_borders();
+    }
+
     fn draw_grid(&self) {
         for line in &self.lines {
             let color = Color::new(0.663, 0.373, 0.263, line.alpha);

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use macroquad::prelude::*;
 use crate::assets::*;
 use crate::gamescene::*;
@@ -20,6 +19,7 @@ pub struct GameState {
     apples: Vec<Apple>,
     spawn_timer: Timer,
     delay_timer: Timer,
+    basic_gfx: bool,
     pub substate: GameSubState,
 }
 
@@ -30,7 +30,7 @@ impl GameState {
     const MAX_APPLES: usize = 3;
 
     pub fn new(width: f32, height: f32, grid_size: f32) -> GameState {
-        let mut assets = Assets::new();
+        let assets = Assets::new();
 
         let game_scene = GameScene::new(width, height, grid_size);
         let mut snake = Snake::new(GameState::SNAKE_INITIAL_X, 
@@ -43,10 +43,11 @@ impl GameState {
         let apples = Vec::new();
         let spawn_timer = Timer::new(GameState::SPAWN_TIME); 
         let delay_timer = Timer::new(Snake::STUN_INTERVAL); 
+        let basic_gfx = false;
         let substate = GameSubState::GetReady;
 
         GameState { assets, game_scene, snake, apples,
-                    spawn_timer, delay_timer, substate }
+                    spawn_timer, delay_timer, basic_gfx, substate }
     }
 
     pub async fn load(&mut self) {
@@ -66,6 +67,11 @@ impl GameState {
     pub fn handle_input(&mut self) {
         match self.substate {
             GameSubState::Playing => {
+                // Switch graphics style
+                if is_key_pressed(KeyCode::F2) {
+                    self.basic_gfx = !self.basic_gfx;
+                }
+
                 let dir_changed = 
                     if is_key_down(KeyCode::Up) {
                         self.snake.set_direction(Direction::Up)
@@ -121,27 +127,38 @@ impl GameState {
     pub fn draw(&mut self) {
         let width: f32 = screen_width() as f32;
         let height: f32 = screen_height() as f32;
-        let text_params = TextParams {
-            font: *self.assets.get_font(FontId::Main),
-            font_size: 48,
-            font_scale: 1.0,
-            font_scale_aspect: 1.0,
-            color: WHITE
-        };
 
-        clear_background(Color::new(0.325, 0.133, 0.067, 1.0));
-
-        // Draw scene
-        self.game_scene.draw(self.assets.get_texture(TextureId::Wall));
-
-        // Draw snake
-        self.snake.draw(&self.assets.get_texture(TextureId::Snake), 
-                        &self.game_scene);
+        if self.basic_gfx {
+            clear_background(BLACK);
+            self.game_scene.draw_basic();
+            self.snake.draw_basic(&self.game_scene);
+        } else {
+            clear_background(Color::new(0.325, 0.133, 0.067, 1.0));
+            self.game_scene.draw(self.assets.get_texture(TextureId::Wall));
+            self.snake.draw(&self.assets.get_texture(TextureId::Snake), 
+                            &self.game_scene);
+        }
 
         // Draw apples
         for apple in &mut self.apples {
             apple.draw(&self.game_scene);
         }
+
+        let mut text_params = TextParams {
+            font: *self.assets.get_font(FontId::Main),
+            font_size: 24,
+            font_scale: 1.0,
+            font_scale_aspect: 1.0,
+            color: WHITE
+        };
+
+        // Draw status text
+        {
+            let text = format!("Length: {}", self.snake.get_length());
+            draw_text_ex(&text, 32.0, height - 30.0, text_params);
+        }
+
+        text_params.font_size = 48;
 
         // Draw get ready text
         if self.substate == GameSubState::GetReady {
