@@ -1,7 +1,8 @@
 mod assets;
 mod gamestate;
 mod gamescene;
-mod actors;
+mod snake;
+mod apple;
 mod common;
 
 use macroquad::prelude::*;
@@ -15,8 +16,9 @@ const STATUS_HEIGHT: i32 = 64;
 #[macroquad::main(window_conf)]
 async fn main() {
     rand::srand(49152);
-    let mut game = GameState::new(WIDTH, HEIGHT, GRID_SIZE);
+    let mut game = GameState::new(WIDTH, HEIGHT, GRID_SIZE, 2);
     game.load().await;
+    game.start();
 
     loop {
         game.update();

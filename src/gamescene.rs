@@ -60,17 +60,16 @@ impl GameScene {
 
     }
 
-    fn to_view_coord(&self, pos: &Vec2) -> Vec2 {
-        Vec2::new(pos.x * self.grid_size as f32, 
-                      pos.y * self.grid_size  as f32)
-    }
-
-    pub fn get_width(&self) -> f32 {
+    pub fn width(&self) -> f32 {
         self.width
     }
 
-    pub fn get_height(&self) -> f32 {
+    pub fn height(&self) -> f32 {
         self.height
+    }
+
+    pub fn play_area(&self) -> Rect {
+        Rect::new(1.0, 1.0, self.width - 2.0, self.height - 2.0)
     }
 
     pub fn animate_grid(&mut self) -> bool {
@@ -91,18 +90,61 @@ impl GameScene {
     }
 
     pub fn draw(&self, texture: &Texture2D) {
-        self.draw_grid();
+        self.draw_grid(Color::new(0.663, 0.373, 0.263, 1.0));
         self.draw_texture_borders(texture);
     }
 
     pub fn draw_basic(&self) {
-        self.draw_grid();
+        self.draw_grid(Color::new(0.3, 0.3, 1.0, 1.0));
         self.draw_borders();
     }
 
-    fn draw_grid(&self) {
+    pub fn draw_block(&self, pos: &Vec2, color: &Color) {
+        let draw_pos = self.to_view_coord(pos);
+        draw_rectangle(draw_pos.x, draw_pos.y, 
+                       self.grid_size as f32, self.grid_size as f32, 
+                       *color);
+    }
+
+    pub fn draw_circle(&self, pos: &Vec2, color: &Color) {
+        let draw_pos = self.to_view_coord(pos);
+        draw_circle(draw_pos.x + self.grid_size / 2.0, 
+                    draw_pos.y + self.grid_size / 2.0, 
+                    (self.grid_size / 4.0) as f32,
+                    *color);
+    }
+
+    pub fn draw_texture(&self, texture: &Texture2D, pos: &Vec2, 
+                        color: &Color) {
+        let draw_pos = self.to_view_coord(pos);
+        let mut draw_params: DrawTextureParams = DrawTextureParams::default();
+        draw_params.dest_size = Some(
+            Vec2::new(self.grid_size, self.grid_size)
+        );
+        draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
+    }
+
+    pub fn draw_texture_atlas(&self, texture: &Texture2D, src_size: f32,
+                                 atlas_index: f32, pos: &Vec2, 
+                                 color: &Color, rotation: f32) {
+        let draw_pos = self.to_view_coord(pos);
+        let mut draw_params: DrawTextureParams = DrawTextureParams::default();
+        draw_params.source = Some(
+            Rect::new((atlas_index * src_size) as f32, 0.0, src_size, src_size)
+        ); 
+        draw_params.dest_size = Some(
+            Vec2::new(self.grid_size, self.grid_size)
+        );
+        draw_params.rotation = rotation;
+        draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
+    }
+
+//=================================================================================================
+//  Private methods (GameScene)
+//=================================================================================================
+    fn draw_grid(&self, mut color: Color) {
         for line in &self.lines {
-            let color = Color::new(0.663, 0.373, 0.263, line.alpha);
+            color.a = line.alpha;
             draw_line(line.x1, line.y1, line.x2, line.y2, 1.0, color); 
         }
     }
@@ -139,45 +181,9 @@ impl GameScene {
         }
     }
 
-    pub fn draw_block(&self, pos: &Vec2, color: &Color) {
-        let draw_pos = self.to_view_coord(pos);
-        draw_rectangle(draw_pos.x, draw_pos.y, 
-                       self.grid_size as f32, self.grid_size as f32, 
-                       *color);
+    fn to_view_coord(&self, pos: &Vec2) -> Vec2 {
+        Vec2::new(pos.x * self.grid_size as f32, 
+                      pos.y * self.grid_size  as f32)
     }
-
-    pub fn draw_circle(&self, pos: &Vec2, color: &Color) {
-        let draw_pos = self.to_view_coord(pos);
-        draw_circle(draw_pos.x + self.grid_size / 2.0, 
-                    draw_pos.y + self.grid_size / 2.0, 
-                    (self.grid_size / 4.0) as f32,
-                    *color);
-    }
-
-    pub fn draw_texture(&self, texture: &Texture2D, pos: &Vec2, 
-                        color: &Color) {
-        let draw_pos = self.to_view_coord(pos);
-        let mut draw_params: DrawTextureParams = DrawTextureParams::default();
-        draw_params.dest_size = Some(
-            Vec2::new(self.grid_size, self.grid_size)
-        );
-        draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
-    }
-
-    pub fn draw_texture_by_index(&self, texture: &Texture2D, src_size: f32,
-                                 atlas_index: f32, pos: &Vec2, 
-                                 color: &Color, rotation: f32) {
-        let draw_pos = self.to_view_coord(pos);
-        let mut draw_params: DrawTextureParams = DrawTextureParams::default();
-        draw_params.source = Some(
-            Rect::new((atlas_index * src_size) as f32, 0.0, src_size, src_size)
-        ); 
-        draw_params.dest_size = Some(
-            Vec2::new(self.grid_size, self.grid_size)
-        );
-        draw_params.rotation = rotation;
-        draw_texture_ex(*texture, draw_pos.x, draw_pos.y, *color, draw_params);
-    }
-
 }
 

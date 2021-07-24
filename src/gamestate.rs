@@ -1,86 +1,103 @@
 use macroquad::prelude::*;
 use crate::assets::*;
 use crate::gamescene::*;
-use crate::actors::*;
+use crate::snake::*;
+use crate::apple::*;
 use crate::common::*;
 
 //=============================================================================
 //    GameState
 //=============================================================================
 #[derive(Eq, PartialEq)]
-pub enum GameSubState {
+pub enum LevelState {
     GetReady, Playing, Stunned, Dying, GameOver
 }
 
 pub struct GameState {
     assets: Assets,
     game_scene: GameScene,
-    snake: Snake,
+    players: Vec<Snake>,
     apples: Vec<Apple>,
     spawn_timer: Timer,
     delay_timer: Timer,
     basic_gfx: bool,
-    pub substate: GameSubState,
+    pub substate: LevelState,
 }
 
 impl GameState {
-    const SNAKE_INITIAL_X: f32 = 3.0;
-    const SNAKE_INITIAL_Y: f32 = 12.0;
-    const SPAWN_TIME: f32 = 2.0;
-    const MAX_APPLES: usize = 3;
+    pub fn new(width: f32, height: f32, grid_size: f32, player_count: u8) -> GameState {
+        const SPAWN_TIME: f32 = 2.0;
 
-    pub fn new(width: f32, height: f32, grid_size: f32) -> GameState {
-        let assets = Assets::new();
-
-        let game_scene = GameScene::new(width, height, grid_size);
-        let mut snake = Snake::new(GameState::SNAKE_INITIAL_X, 
-                GameState::SNAKE_INITIAL_Y);
-        snake.set_bound(
-            &Rect::new(1.0, 1.0, 
-            game_scene.get_width() as f32 - 2.0, 
-            game_scene.get_height() as f32 - 2.0)
-        );
-        let apples = Vec::new();
-        let spawn_timer = Timer::new(GameState::SPAWN_TIME); 
-        let delay_timer = Timer::new(Snake::STUN_INTERVAL); 
-        let basic_gfx = false;
-        let substate = GameSubState::GetReady;
-
-        GameState { assets, game_scene, snake, apples,
-                    spawn_timer, delay_timer, basic_gfx, substate }
+        GameState { 
+            assets: Assets::new(),
+            game_scene: GameScene::new(width, height, grid_size), 
+            players: { 
+                let bound = Rect::new(1.0, 1.0, width - 2.0, height - 2.0);
+                let mut players: Vec<Snake> = Vec::new();
+                match player_count {
+                    1 => players.push(Snake::new(GREEN, Vec2::new(10.0, 18.0), bound)),
+                    _ => {
+                        players.push(Snake::new(GREEN, Vec2::new(17.0, 18.0), bound));
+                        players.push(Snake::new(PINK, Vec2::new(2.0, 18.0), bound));
+                    }
+                }
+                players
+            },
+            apples: Vec::new(),
+            spawn_timer: Timer::new(SPAWN_TIME), 
+            delay_timer: Timer::new(Snake::STUN_INTERVAL), 
+            basic_gfx: false, 
+            substate: LevelState::GetReady
+        }
     }
 
     pub async fn load(&mut self) {
         self.assets.load().await;
     }
 
+    pub fn start(&self) {
+        self.assets.play_sound(SoundId::GetReady);
+    }
+
     pub fn reset(&mut self) {
         self.game_scene.reset();
-        self.snake.reset(
-            GameState::SNAKE_INITIAL_X, GameState::SNAKE_INITIAL_Y);
+
+        for player in &mut self.players {
+            player.reset();
+        }
+
         self.apples.clear();
         self.spawn_timer.reset(); 
         self.delay_timer.reset(); 
-        self.substate = GameSubState::GetReady;
+        self.substate = LevelState::GetReady;
+        self.assets.play_sound(SoundId::GetReady);
     }
 
     pub fn handle_input(&mut self) {
         match self.substate {
-            GameSubState::Playing => {
-                // Switch graphics style
-                if is_key_pressed(KeyCode::F2) {
-                    self.basic_gfx = !self.basic_gfx;
-                }
-
-                let dir_changed = 
+            LevelState::Playing => {
+                let mut dir_changed = 
                     if is_key_down(KeyCode::Up) {
-                        self.snake.set_direction(Direction::Up)
+                        self.players[0].set_direction(Direction::Up)
                     } else if is_key_down(KeyCode::Down) {
-                        self.snake.set_direction(Direction::Down)
+                        self.players[0].set_direction(Direction::Down)
                     } else if is_key_down(KeyCode::Left) {
-                        self.snake.set_direction(Direction::Left)
+                        self.players[0].set_direction(Direction::Left)
                     } else if is_key_down(KeyCode::Right) {
-                        self.snake.set_direction(Direction::Right)
+                        self.players[0].set_direction(Direction::Right)
+                    } else {
+                        false
+                    };
+
+                dir_changed = dir_changed || 
+                    if is_key_down(KeyCode::W) {
+                        self.players[1].set_direction(Direction::Up)
+                    } else if is_key_down(KeyCode::S) {
+                        self.players[1].set_direction(Direction::Down)
+                    } else if is_key_down(KeyCode::A) {
+                        self.players[1].set_direction(Direction::Left)
+                    } else if is_key_down(KeyCode::D) {
+                        self.players[1].set_direction(Direction::Right)
                     } else {
                         false
                     };
@@ -89,38 +106,43 @@ impl GameState {
                     self.assets.play_sound(SoundId::Move);
                 }
             },
-            GameSubState::GameOver => {
-                if is_key_down(KeyCode::Enter) {
+            LevelState::GameOver => {
+                if is_key_down(KeyCode::Enter) || is_key_down(KeyCode::Space) {
                     self.reset();
                 }
             },
             _ => { }
         }
+
+        // Switch graphics style
+        if is_key_pressed(KeyCode::F2) {
+            self.basic_gfx = !self.basic_gfx;
+        }
+
     }
 
     pub fn update(&mut self) {
+        self.handle_input();
+
         match &self.substate {
-            GameSubState::GetReady => {
+            LevelState::GetReady => {
                 if !self.game_scene.animate_grid() {
-                    self.substate = GameSubState::Playing;
+                    self.substate = LevelState::Playing;
                 }
             },
-            GameSubState::Playing => {
-                self.handle_input();
+            LevelState::Playing => {
                 self.update_actors();
             },
-            GameSubState::Stunned => {
+            LevelState::Stunned => {
                 if self.delay_timer.update() {
-                    self.substate = GameSubState::Dying;
+                    self.substate = LevelState::Dying;
                     self.delay_timer.reset();
                 }
             }
-            GameSubState::Dying => {
+            LevelState::Dying => {
                 self.dying();
             }
-            GameSubState::GameOver => { 
-                self.handle_input();
-            }
+            LevelState::GameOver => { }
         }
     }
 
@@ -131,22 +153,37 @@ impl GameState {
         if self.basic_gfx {
             clear_background(BLACK);
             self.game_scene.draw_basic();
-            self.snake.draw_basic(&self.game_scene);
+            
+            for player in &self.players {
+                player.draw_basic(&self.game_scene);
+            }
+
+            for apple in &mut self.apples {
+                apple.draw_basic(&self.game_scene);
+            }
         } else {
             clear_background(Color::new(0.325, 0.133, 0.067, 1.0));
-            self.game_scene.draw(self.assets.get_texture(TextureId::Wall));
-            self.snake.draw(&self.assets.get_texture(TextureId::Snake), 
-                            &self.game_scene);
-        }
+            self.game_scene.draw(self.assets.texture(TextureId::Wall));
 
-        // Draw apples
-        for apple in &mut self.apples {
-            apple.draw(&self.game_scene);
+            let mut player_index = 0;
+            for player in &self.players {
+                player.draw(&self.assets.texture(
+                        if player_index == 0 { TextureId::Snake1 }
+                        else { TextureId::Snake2 }
+                        ), &self.game_scene);
+                player_index += 1;
+            }
+
+            for apple in &mut self.apples {
+                apple.draw(&self.assets.texture(TextureId::Apple), &self.game_scene);
+            }
         }
 
         let mut text_params = TextParams {
-            font: *self.assets.get_font(FontId::Main),
-            font_size: 24,
+            font: *self.assets.font(
+                if self.basic_gfx { FontId::Retro } 
+                else { FontId::Main } ),
+            font_size: if self.basic_gfx { 24 } else { 30 },
             font_scale: 1.0,
             font_scale_aspect: 1.0,
             color: WHITE
@@ -154,31 +191,48 @@ impl GameState {
 
         // Draw status text
         {
-            let text = format!("Length: {}", self.snake.get_length());
-            draw_text_ex(&text, 32.0, height - 30.0, text_params);
+            let mut i = 0;
+
+            for player in &self.players {
+                let text = format!("Length: {}", player.length());
+                text_params.color = player.color;
+                let dimension = measure_text(&text, Some(text_params.font), 
+                    text_params.font_size, text_params.font_scale);
+                let offset = 32.0;
+                let y = height - 30.0;
+                match i {
+                    0 => draw_text_ex(&text, width - offset - dimension.width, y, text_params),
+                    _ => draw_text_ex(&text, offset, y, text_params)
+                }
+                i += 1;
+            }
         }
 
         text_params.font_size = 48;
+        text_params.color = WHITE;
 
         // Draw get ready text
-        if self.substate == GameSubState::GetReady {
+        if self.substate == LevelState::GetReady {
             let text = "Get Ready";
-            let pos = get_text_center_pos(text, text_params, width, height);
+            let pos = text_center_pos(text, text_params, width, height);
             draw_text_ex(text, pos.x, pos.y, text_params);
         } 
 
         // Draw game over text
-        if self.substate == GameSubState::GameOver {
+        if self.substate == LevelState::GameOver {
             let text = "Gameover";
-            let pos = get_text_center_pos(text, text_params, width, height);
+            let pos = text_center_pos(text, text_params, width, height);
             draw_text_ex(text, pos.x, pos.y, text_params);
         }
         
     }
 
     pub fn update_actors(&mut self) {
-        if self.spawn_timer.update() {
-            self.spawn_apples();
+        const MAX_APPLES: usize = 3;
+
+        if self.spawn_timer.update() && self.apples.len() < MAX_APPLES {
+            let apple = Apple::random_spawn(&self.game_scene.play_area(), &self.players);
+            self.apples.push(apple);
             self.spawn_timer.reset();
         }
 
@@ -186,48 +240,26 @@ impl GameState {
             apple.update();
         }
 
-        if self.snake.update() {
-            if !self.snake.is_alive() {
-                self.assets.play_sound(SoundId::Dead);
-                self.substate = GameSubState::Stunned;
-            } else {
-                if self.snake.eat_apples(&mut self.apples) {
-                    self.assets.play_sound(SoundId::Eat);
+        for player in &mut self.players {
+            if player.check_update_time() {
+                if player.check_collision() {
+                    self.assets.play_sound(SoundId::Dead);
+                    self.substate = LevelState::Stunned;
+                } else {
+                    player.update();
+                    if player.eat_apples(&mut self.apples) {
+                        self.assets.play_sound(SoundId::Eat);
+                    }
                 }
             }
         }
     }
 
     fn dying(&mut self) {
-        if !self.snake.dying() {
-            self.substate = GameSubState::GameOver;
-        }
-    }
-
-    fn spawn_apples(&mut self) {
-        if self.apples.len() < GameState::MAX_APPLES {
-            let mut pos: Vec2;
-            let width = self.game_scene.get_width() - 2.0;
-            let height = self.game_scene.get_height() - 2.0;
-
-            loop {
-                // Randomize position inside playing field excluding borders
-                let x: f32 = (rand::rand() % width as u32) as f32;
-                let y: f32 = (rand::rand() % height as u32) as f32;
-                // +1 to start after left & top border
-                pos = Vec2::new(x + 1.0, y + 1.0); 
-
-                // Do not spawn on top of the snake
-                if self.snake.is_position_overlapped(&pos) {
-                    continue;
-                }
-
-                break;
+        for player in &mut self.players {
+            if !player.is_alive() && !player.dying() {
+                self.substate = LevelState::GameOver;
             }
-            
-            //DEBUG println!("Spawned an apple at {},{}", pos.x, pos.y);
-            let apple = Apple::new(&pos);
-            self.apples.push(apple);  // add to apple list
         }
     }
 }

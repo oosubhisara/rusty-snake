@@ -69,7 +69,7 @@ pub fn dir_to_vec2(dir: Direction) -> Vec2 {
     }
 }
 
-pub fn get_opposite_dir(dir: Direction) -> Direction {
+pub fn opposite_dir(dir: Direction) -> Direction {
     match dir {
         Direction::Up => Direction::Down,
         Direction::Down => Direction::Up, 
@@ -79,7 +79,7 @@ pub fn get_opposite_dir(dir: Direction) -> Direction {
 }
 
 
-pub fn get_text_center_pos(text: &str, text_params: TextParams,
+pub fn text_center_pos(text: &str, text_params: TextParams,
                            screen_w: f32, screen_h: f32) -> Vec2 {
     let dimension: TextDimensions = 
         measure_text(text, Some(text_params.font), text_params.font_size, 

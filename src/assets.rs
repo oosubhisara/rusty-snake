@@ -4,17 +4,17 @@ use macroquad::audio::*;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum TextureId {
-    Wall, Snake
+    Wall, Snake1, Snake2, Apple
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum SoundId {
-    Move, Eat, Dead
+    GetReady, Move, Eat, Dead
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum FontId {
-    Main
+    Main, Retro
 }
 
 pub struct Assets {
@@ -35,13 +35,17 @@ impl Assets {
 
     pub async fn load(&mut self) {
         self.add_texture(TextureId::Wall, "assets/images/wall.png").await;
-        self.add_texture(TextureId::Snake, "assets/images/snake.png").await;
+        self.add_texture(TextureId::Snake1, "assets/images/snake1.png").await;
+        self.add_texture(TextureId::Snake2, "assets/images/snake2.png").await;
+        self.add_texture(TextureId::Apple, "assets/images/apple.png").await;
         
+        self.add_sound(SoundId::GetReady, "assets/sounds/get_ready.wav").await;
         self.add_sound(SoundId::Move, "assets/sounds/move.wav").await;
         self.add_sound(SoundId::Eat, "assets/sounds/eat.wav").await;
         self.add_sound(SoundId::Dead, "assets/sounds/dead.wav").await;
 
-        self.add_font(FontId::Main, "assets/fonts/FiraSans-Bold.ttf").await;
+        self.add_font(FontId::Main, "assets/fonts/dpcomic.ttf").await;
+        self.add_font(FontId::Retro, "assets/fonts/gomarice_no_continue.ttf").await;
         println!("Asset loaded.");
     }
 
@@ -87,12 +91,12 @@ impl Assets {
         play_sound_once(*sound);
     }
 
-    pub fn get_texture(&self, key: TextureId) -> &Texture2D {
+    pub fn texture(&self, key: TextureId) -> &Texture2D {
         let texture: &Texture2D = self.textures.get(&key).unwrap();
         &texture
     }
 
-    pub fn get_font(&self, key: FontId) -> &Font {
+    pub fn font(&self, key: FontId) -> &Font {
         let font: &Font = self.fonts.get(&key).unwrap();
         &font
     }
