@@ -50,7 +50,7 @@ pub struct Snake {
 }
 
 impl Snake {
-    const INITIAL_SPEED: f32 = 2.0;
+    const INITIAL_SPEED: f32 = 3.0;
     const MAX_SPEED: f32 = 10.0;
     pub const STUN_INTERVAL: f32 = 0.8;
     const NORMAL_DYING_INTERVAL: f32 = 0.2;
@@ -242,7 +242,7 @@ impl Snake {
         }
     }
 
-    pub fn draw(&self, texture: &Texture2D, scene: &GameScene) {
+    pub fn draw(&self, texture: &Texture2D, draw_tongue: bool, scene: &GameScene) {
         let length: u32 = self.parts.len() as u32;
         if length == 0 {
             return
@@ -290,14 +290,16 @@ impl Snake {
         }
 
         // Draw tongue
-        frame_index = match self.tongue_anim_flag {
-            false => SnakeFrame::TONGUE_1,
-            true => SnakeFrame::TONGUE_2,
-        };
-        let cur_dir = self.direction(); 
-        let tongue_pos = self.position() + dir_to_vec2(cur_dir); 
-        let tongue_rotation = self.rotation_from_direction(&cur_dir);
-        scene.draw_texture_atlas(texture, 16.0, frame_index, &tongue_pos, &WHITE, tongue_rotation);
+        if draw_tongue {
+            frame_index = match self.tongue_anim_flag {
+                false => SnakeFrame::TONGUE_1,
+                true => SnakeFrame::TONGUE_2,
+            };
+            let cur_dir = self.direction(); 
+            let tongue_pos = self.position() + dir_to_vec2(cur_dir); 
+            let tongue_rotation = self.rotation_from_direction(&cur_dir);
+            scene.draw_texture_atlas(texture, 16.0, frame_index, &tongue_pos, &WHITE, tongue_rotation);
+        }
     }
 
 //=================================================================================================    

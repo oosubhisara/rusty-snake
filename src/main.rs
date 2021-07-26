@@ -19,7 +19,7 @@ async fn main() {
 
     println!("Screen size: {}x{}", screen_width(), screen_height());
 
-    let mut game = GameState::new(WIDTH, HEIGHT, GRID_SIZE, 2);
+    let mut game = GameState::new(WIDTH, HEIGHT, GRID_SIZE);
     game.load().await;
     game.start();
 

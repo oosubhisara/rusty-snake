@@ -16,7 +16,8 @@ pub enum LevelState {
 pub struct GameState {
     assets: Assets,
     game_scene: GameScene,
-    players: Vec<Snake>,
+    player_count: usize,
+    players: [Snake; 2],
     apples: Vec<Apple>,
     scores: [i32; 2],
     game_time: f32,
@@ -28,7 +29,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(width: f32, height: f32, grid_size: f32, player_count: u8) -> GameState {
+    pub fn new(width: f32, height: f32, grid_size: f32) -> GameState {
         const SPAWN_TIME: f32 = 2.0;
         let game_scene = GameScene::new(width, height, grid_size);
         let left_gate = game_scene.left_gate_position();
@@ -37,22 +38,14 @@ impl GameState {
         GameState { 
             assets: Assets::new(),
             game_scene: game_scene, 
+            player_count: 1,
             players: { 
                 let bound = Rect::new(1.0, 1.0, width - 2.0, height - 2.0);
                 let mut players: Vec<Snake> = Vec::new();
-                match player_count {
-                    1 => {
-                        players.push(Snake::new(0, GREEN, Vec2::new(
-                            right_gate.x, right_gate.y + 1.0), bound));
-                    }
-                    _ => {
-                        players.push(Snake::new(0, GREEN, Vec2::new(
-                            right_gate.x, right_gate.y + 1.0), bound));
-                        players.push(Snake::new(1, PINK, Vec2::new(
-                            left_gate.x, left_gate.y + 1.0), bound));
-                    }
-                }
-                players
+                [
+                    Snake::new(0, GREEN, Vec2::new(right_gate.x, right_gate.y + 1.0), bound),
+                    Snake::new(1, PINK, Vec2::new( left_gate.x, left_gate.y + 1.0), bound)
+                ]
             },
             apples: Vec::new(),
             scores: [0, 0],
@@ -76,8 +69,8 @@ impl GameState {
     pub fn reset(&mut self) {
         self.game_scene.reset();
 
-        for player in &mut self.players {
-            player.reset();
+        for i in 0..self.player_count {
+            self.players[i].reset();
         }
 
         self.apples.clear();
@@ -131,10 +124,15 @@ impl GameState {
             _ => { }
         }
 
-        // Switch graphics style
-        if is_key_pressed(KeyCode::F3) {
+        if is_key_pressed(KeyCode::F1) {
+            self.player_count = 1;
+            self.reset();
+        } else if is_key_pressed(KeyCode::F2) {
+            self.player_count = 2;
+            self.reset();
+        } else if is_key_pressed(KeyCode::F5) {
             self.basic_actor = !self.basic_actor;
-        } else if is_key_pressed(KeyCode::F4) {
+        } else if is_key_pressed(KeyCode::F6) {
             self.basic_scene = !self.basic_scene;
         }
 
@@ -190,7 +188,9 @@ impl GameState {
         if self.basic_actor {
             let draw_player_order = if !self.players[0].is_alive() { [1, 0] } else { [0, 1] };
             for i in draw_player_order {
-                self.players[i].draw_basic(&self.game_scene);
+                if (i < self.player_count) {
+                    self.players[i].draw_basic(&self.game_scene);
+                }
             }
 
             for apple in &mut self.apples {
@@ -200,12 +200,15 @@ impl GameState {
             let draw_player_order = if !self.players[0].is_alive() { [1, 0] } else { [0, 1] };
             
             for i in draw_player_order {
-                self.players[i].draw(
-                    &self.assets.texture( 
-                        if self.players[i].id() == 0 { TextureId::Snake1 } 
-                        else { TextureId::Snake2 }
-                    ),
-                    &self.game_scene);
+                if (i < self.player_count) {
+                    self.players[i].draw(
+                        &self.assets.texture( 
+                            if self.players[i].id() == 0 { TextureId::Snake1 } 
+                            else { TextureId::Snake2 }
+                        ),
+                        if self.substate == LevelState::GetReady { false } else { true },
+                        &self.game_scene);
+                }
             }
 
             for apple in &mut self.apples {
@@ -230,11 +233,9 @@ impl GameState {
 
         // Draw status text
         {
-            let mut i = 0;
-
-            for player in &self.players {
+            for i in 0..self.player_count {
                 let text = "Score: 0000000";
-                text_params.color = player.color;
+                text_params.color = self.players[i].color;
                 let dimension = measure_text(&text, Some(text_params.font), 
                     text_params.font_size, text_params.font_scale);
                 let x1 = 32.0;
@@ -243,19 +244,18 @@ impl GameState {
                 let y2 = height - 25.0; 
                 match i {
                     0 => {
-                        draw_text_ex(&format!("Length: {}", player.length())[..],
+                        draw_text_ex(&format!("Length: {}", self.players[i].length())[..],
                             x2, y1, text_params);
                         draw_text_ex(&format!("Score: {:07}", self.scores[i])[..],
                             x2, y2, text_params);
                     },
                     _ => {
-                        draw_text_ex(&format!("Length: {}", player.length())[..],
+                        draw_text_ex(&format!("Length: {}", self.players[i].length())[..],
                             x1, y1, text_params);
                         draw_text_ex(&format!("Score: {:07}", self.scores[i])[..],
                             x1, y2, text_params);
                     }
                 }
-                i += 1;
             }
         }
 
@@ -279,14 +279,14 @@ impl GameState {
     }
 
     pub fn player_by_id(&self, id: i32) -> Option<&Snake> {
-        if id >= self.players.len() as i32 {
+        if id < 0 || id >= self.player_count as i32 {
             None
         } else {
             Some(&self.players[id as usize]) }
     }
 
     fn update_scores(&mut self) {
-        for i in 0..self.players.len() {
+        for i in 0..self.player_count {
             self.scores[i] +=  (self.players[i].length() as f32 * 0.2) as i32;
         }
     }
@@ -295,7 +295,8 @@ impl GameState {
         const MAX_APPLES: usize = 3;
 
         if self.spawn_timer.update() && self.apples.len() < MAX_APPLES {
-            let apple = Apple::random_spawn(&self.game_scene.play_area(), &self.players);
+            let apple = Apple::random_spawn(&self.game_scene.play_area(), 
+                                            &self.players[0..self.player_count]);
             self.apples.push(apple);
             self.spawn_timer.reset();
         }
@@ -304,8 +305,7 @@ impl GameState {
             apple.update();
         }
 
-        let player_count = self.players.len();
-        for i  in 0..player_count {
+        for i  in 0..self.player_count {
             if self.players[i].check_update_time() {
                 let opponent_id: i32 = self.opponent_player_index(i as i32);
                 if self.substate == LevelState::Playing 
@@ -326,7 +326,7 @@ impl GameState {
     }
 
     fn opponent_player_index(&self, id: i32) -> i32 { 
-        if self.players.len() == 1 {
+        if self.player_count == 1 {
             -1
         } else if id == 0 { 
             1
