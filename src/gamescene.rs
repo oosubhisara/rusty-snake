@@ -10,26 +10,29 @@ pub struct GameScene {
     grid_size: f32,
     grid_alpha: f32,
     lines: Vec<Line>,
+    gates_opened: bool,
     timer: Timer,
 }
 
 impl GameScene {
-    const GRID_FADE_SPEED: f32 = 0.02;
+    const GRID_FADE_SPEED: f32 = 0.03;
 
     pub fn new(width: f32, height: f32, grid_size: f32) 
             -> Self {
         let grid_alpha = 0.7;
         let lines = Vec::new(); 
+        let gates_opened = true;
         let timer = Timer::new(1.0 / 60.0); 
         let mut new_scene = Self { 
             width, height, grid_size, grid_alpha, 
-            lines, timer
+            lines, gates_opened, timer
         };
         new_scene.reset();
         new_scene
     }
 
     pub fn reset(&mut self) {
+        self.gates_opened = true;
         self.lines.clear();
 
         let mut alpha: f32 = 0.0;
@@ -58,6 +61,22 @@ impl GameScene {
             alpha -= alpha_diff; 
         }
 
+    }
+
+    pub fn left_gate_position(&self) -> Vec2 {
+        Vec2::new(3.0, self.height - 1.0)
+    }
+
+    pub fn right_gate_position(&self) -> Vec2 {
+        Vec2::new(self.width - 1.0 - 3.0, self.height - 1.0)
+    }
+
+    pub fn open_gates(&mut self) {
+        self.gates_opened = true;
+    }
+
+    pub fn close_gates(&mut self) {
+        self.gates_opened = false;
     }
 
     pub fn width(&self) -> f32 {
@@ -154,8 +173,12 @@ impl GameScene {
 
         for x in 0..self.width as u32{
             self.draw_block(&Vec2::new(x as f32, 0.0), &color);
-            self.draw_block(&Vec2::new(x as f32 , 
-                            self.height as f32 - 1.0), &color);
+            if !self.gates_opened || 
+                    ( (x as f32 - self.left_gate_position().x).abs() > 1.0
+                    && (x as f32 - self.right_gate_position().x).abs() > 1.0 ) {
+                self.draw_block(&Vec2::new(x as f32 , 
+                                self.height as f32 - 1.0), &color);
+            }
         }
 
         for y in 0..self.height as u32 {

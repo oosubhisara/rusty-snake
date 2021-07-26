@@ -1,5 +1,6 @@
 use std::collections::LinkedList;
 use macroquad::prelude::*;
+use crate::gamestate::*;
 use crate::gamescene::*;
 use crate::apple::*;
 use crate::common::*;
@@ -35,6 +36,7 @@ impl SnakePart {
 }
 
 pub struct Snake {
+    id: u8,
     pub color: Color,
     initial_pos: Vec2,
     parts: LinkedList<SnakePart>,
@@ -54,7 +56,7 @@ impl Snake {
     const NORMAL_DYING_INTERVAL: f32 = 0.2;
     const FAST_DYING_INTERVAL: f32 = 0.05;
 
-    pub fn new(color: Color, initial_pos: Vec2, bound: Rect) -> Snake {
+    pub fn new(id: u8, color: Color, initial_pos: Vec2, bound: Rect) -> Snake {
         let parts: LinkedList<SnakePart> = LinkedList::new(); 
         let removed_part = None;
         let tongue_anim_flag = false;
@@ -63,8 +65,8 @@ impl Snake {
         let timer = Timer::new(0.0);
         let alive = true;
 
-        let mut snake = Snake { color, initial_pos, parts, removed_part, tongue_anim_flag, new_dir, 
-                                speed, timer, alive, bound };
+        let mut snake = Snake { id, color, initial_pos, parts, removed_part, tongue_anim_flag, 
+                                new_dir, speed, timer, alive, bound };
         snake.reset();
         snake
     }
@@ -83,6 +85,10 @@ impl Snake {
         self.alive = true;
     }
 
+    pub fn id(&self) -> u8 {
+        self.id
+    }
+
     pub fn set_direction(&mut self, dir: Direction) -> bool {
         let mut dir_changed = false;
         let current_dir = self.direction();
@@ -94,6 +100,20 @@ impl Snake {
         }
 
         dir_changed
+    }
+
+    pub fn kill_self(&mut self) {
+        self.alive = false;
+        let length: f32  = self.parts.len() as f32;
+
+        let interval: f32;
+        if length < 10.0 {
+            interval = Snake::NORMAL_DYING_INTERVAL;
+        } else {
+            interval = Snake::FAST_DYING_INTERVAL;
+        }
+
+        self.timer.set(interval);
     }
 
     pub fn is_alive(&self) -> bool {
@@ -154,27 +174,28 @@ impl Snake {
         result
     }
 
-    pub fn check_collision(&mut self) -> bool {
+    pub fn check_collision(&self, gamestate: &GameState, opponent_id: i32) -> bool {
+        let mut collided = false;
         let pos = self.new_position();
 
-        // Check bounds
-        if !self.bound.contains(pos) {
-            println!("You ran into the wall and died at ({},{})", 
-                     pos.x, pos.y);
-            self.dead();
+        if !self.bound.contains(pos) {  // Collision with walls
+            println!("Player {} crashed into the wall!", self.id + 1);
+            collided = true;
+        } else if self.is_collided_with_snake(&pos, &self) {  // Collision with tail
+            println!("Player {} crashed into yourself!", self.id + 1);
+            collided = true;
         } else {
-            // Check collision with tail
-            for part in &self.parts {
-                if pos == part.pos {
-                    println!("You ran into your tail and died at ({},{})", 
-                            pos.x, pos.y);
-                    self.dead();
-                    break
-                }
+            let opponent_optional = gamestate.player_by_id(opponent_id);
+            match opponent_optional {  // Collision with the opponent
+                Some(opponent) => if self.is_collided_with_snake(&pos, opponent) {  
+                    println!("Player {} crashed into the opponent!", self.id + 1);
+                    collided = true;
+                },
+                None => { }
             }
         }
-
-        !self.alive
+        
+        collided
     }
 
     pub fn check_update_time(&mut self) -> bool {
@@ -208,7 +229,7 @@ impl Snake {
         let mut color = self.color;
 
         for part in &self.parts {
-            if part.pos.y < self.bound.bottom() {
+            if part.pos.y <= self.bound.bottom() {
                 scene.draw_block(&part.pos, &color);
             }
 
@@ -260,7 +281,7 @@ impl Snake {
                 prev_dir = Some(part.dir);
             }
 
-            if part.pos.y < self.bound.bottom() {
+            if part.pos.y <= self.bound.bottom() {
                 scene.draw_texture_atlas(texture, 16.0, frame_index, &part.pos, 
                                          &WHITE, rotation);
             }
@@ -282,18 +303,17 @@ impl Snake {
 //=================================================================================================    
 //  Private methods (Snake)
 //=================================================================================================    
-    fn dead(&mut self) {
-        self.alive = false;
-        let length: f32  = self.parts.len() as f32;
+    fn is_collided_with_snake(&self, pos: &Vec2, snake: &Snake) -> bool {
+        let mut collided = false;
 
-        let interval: f32;
-        if length < 10.0 {
-            interval = Snake::NORMAL_DYING_INTERVAL;
-        } else {
-            interval = Snake::FAST_DYING_INTERVAL;
+        for part in &snake.parts {
+            if *pos == part.pos {
+                collided = true;
+                break
+            }
         }
 
-        self.timer.set(interval);
+        collided
     }
 
     fn rotation_from_direction(&self, dir: &Direction) -> f32 {
