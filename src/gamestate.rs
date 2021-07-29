@@ -4,6 +4,7 @@ use crate::gamescene::*;
 use crate::snake::*;
 use crate::apple::*;
 use crate::common::*;
+use crate::*;
 
 //=============================================================================
 //    GameState
@@ -41,7 +42,6 @@ impl GameState {
             player_count: 1,
             players: { 
                 let bound = Rect::new(1.0, 1.0, width - 2.0, height - 2.0);
-                let mut players: Vec<Snake> = Vec::new();
                 [
                     Snake::new(0, GREEN, Vec2::new(right_gate.x, right_gate.y + 1.0), bound),
                     Snake::new(1, PINK, Vec2::new( left_gate.x, left_gate.y + 1.0), bound)
@@ -59,11 +59,11 @@ impl GameState {
     }
 
     pub async fn load(&mut self) {
-        self.assets.load().await;
+        self.assets.load_from_bundle().await;
     }
 
     pub fn start(&self) {
-        self.assets.play_sound(SoundId::GetReady);
+        self.assets.play_sound(Assets::SND_GET_READY);
     }
 
     pub fn reset(&mut self) {
@@ -80,7 +80,7 @@ impl GameState {
         self.spawn_timer.reset(); 
         self.delay_timer.reset(); 
         self.substate = LevelState::GetReady;
-        self.assets.play_sound(SoundId::GetReady);
+        self.assets.play_sound(Assets::SND_GET_READY);
     }
 
     pub fn handle_input(&mut self) {
@@ -113,7 +113,7 @@ impl GameState {
                     };
 
                 if dir_changed {
-                    self.assets.play_sound(SoundId::Move);
+                    self.assets.play_sound(Assets::SND_MOVE);
                 }
             },
             LevelState::GameOver => {
@@ -178,7 +178,7 @@ impl GameState {
             self.game_scene.draw_basic();
         } else {
             clear_background(Color::new(0.325, 0.133, 0.067, 1.0));
-            self.game_scene.draw(self.assets.texture(TextureId::Wall));
+            self.game_scene.draw(self.assets.texture(Assets::TEX_WALL));
         }
         self.draw_actors();
         self.draw_texts();
@@ -188,7 +188,7 @@ impl GameState {
         if self.basic_actor {
             let draw_player_order = if !self.players[0].is_alive() { [1, 0] } else { [0, 1] };
             for i in draw_player_order {
-                if (i < self.player_count) {
+                if i < self.player_count {
                     self.players[i].draw_basic(&self.game_scene);
                 }
             }
@@ -200,11 +200,11 @@ impl GameState {
             let draw_player_order = if !self.players[0].is_alive() { [1, 0] } else { [0, 1] };
             
             for i in draw_player_order {
-                if (i < self.player_count) {
+                if i < self.player_count {
                     self.players[i].draw(
                         &self.assets.texture( 
-                            if self.players[i].id() == 0 { TextureId::Snake1 } 
-                            else { TextureId::Snake2 }
+                            if self.players[i].id() == 0 { Assets::TEX_SNAKE1 } 
+                            else { Assets::TEX_SNAKE2 }
                         ),
                         if self.substate == LevelState::GetReady { false } else { true },
                         &self.game_scene);
@@ -212,19 +212,19 @@ impl GameState {
             }
 
             for apple in &mut self.apples {
-                apple.draw(&self.assets.texture(TextureId::Apple), &self.game_scene);
+                apple.draw(&self.assets.texture(Assets::TEX_APPLE), &self.game_scene);
             }
         }
     }
 
     fn draw_texts(&mut self) {
-        let width: f32 = screen_width() as f32;
-        let height: f32 = screen_height() as f32;
+        let width: f32 = WINDOW_WIDTH; 
+        let height: f32 = WINDOW_HEIGHT; 
 
         let mut text_params = TextParams {
             font: *self.assets.font(
-                if self.basic_scene { FontId::Retro } 
-                else { FontId::Main } ),
+                if self.basic_scene { Assets::TTF_RETRO } 
+                else { Assets::TTF_ELEGANT } ),
             font_size: if self.basic_scene { 24 } else { 30 },
             font_scale: 1.0,
             font_scale_aspect: 1.0,
@@ -312,12 +312,12 @@ impl GameState {
                         && self.players[i].check_collision(&self, opponent_id) {
                     self.players[i].update();
                     self.players[i].kill_self();
-                    self.assets.play_sound(SoundId::Dead);
+                    self.assets.play_sound(Assets::SND_DEAD);
                     self.substate = LevelState::Stunned;
                 } else {
                     self.players[i].update();
                     if self.players[i].eat_apples(&mut self.apples) {
-                        self.assets.play_sound(SoundId::Eat);
+                        self.assets.play_sound(Assets::SND_EAT);
                     }
                 }
                 self.update_scores();

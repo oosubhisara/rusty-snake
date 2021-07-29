@@ -12,7 +12,7 @@ pub struct Apple {
 
 impl Apple {
     pub fn random_spawn(play_area: &Rect, players: &[Snake]) -> Apple {
-        let mut pos: Vec2;
+        let pos: Vec2;
 
         loop {
             // Randomize position inside playing field excluding borders

@@ -8,6 +8,8 @@ mod common;
 use macroquad::prelude::*;
 use gamestate::*;
 
+const WINDOW_WIDTH: f32 = 800.0;
+const WINDOW_HEIGHT: f32 = 600.0;
 const WIDTH: f32 = 25.0;
 const HEIGHT: f32 = 16.0;
 const GRID_SIZE: f32 = 32.0;
