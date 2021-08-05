@@ -141,7 +141,7 @@ impl Snake {
         Vec2::new(cur_pos.x + offset.x, cur_pos.y + offset.y)
     }
 
-    pub fn is_position_taken(&self, pos: &Vec2) -> bool {
+    pub fn has_position(&self, pos: &Vec2) -> bool {
         for part in &self.parts {
             if *pos == part.pos {
                 return true;

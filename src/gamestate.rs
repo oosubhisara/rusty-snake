@@ -3,8 +3,8 @@ use crate::assets::*;
 use crate::gamescene::*;
 use crate::snake::*;
 use crate::apple::*;
+use crate::label::*;
 use crate::common::*;
-use crate::*;
 
 //=============================================================================
 //    GameState
@@ -24,6 +24,11 @@ pub struct GameState {
     game_time: f32,
     spawn_timer: Timer,
     delay_timer: Timer,
+    label_announce: Label,
+    labels_length_title: [Label; 2],
+    labels_length: [Label; 2],
+    labels_score_title: [Label; 2],
+    labels_score: [Label; 2],
     basic_actor: bool,
     basic_scene: bool,
     pub substate: LevelState,
@@ -52,6 +57,11 @@ impl GameState {
             game_time: 0.0,
             spawn_timer: Timer::new(SPAWN_TIME), 
             delay_timer: Timer::new(Snake::STUN_INTERVAL), 
+            label_announce: Label::new(),
+            labels_length_title: { [Label::new(), Label::new()] },
+            labels_length: { [Label::new(), Label::new()] },
+            labels_score_title: { [Label::new(), Label::new()] },
+            labels_score: { [Label::new(), Label::new()] },
             basic_actor: false, 
             basic_scene: true, 
             substate: LevelState::GetReady
@@ -218,62 +228,89 @@ impl GameState {
     }
 
     fn draw_texts(&mut self) {
-        let width: f32 = WINDOW_WIDTH; 
-        let height: f32 = WINDOW_HEIGHT; 
+        let playfield = Rect::new(0.0, 0.0, 
+            self.game_scene.width() * self.game_scene.grid_size(), 
+            self.game_scene.height() * self.game_scene.grid_size()
+        );
 
-        let mut text_params = TextParams {
-            font: *self.assets.font(
-                if self.basic_scene { Assets::TTF_RETRO } 
-                else { Assets::TTF_ELEGANT } ),
-            font_size: if self.basic_scene { 24 } else { 30 },
-            font_scale: 1.0,
-            font_scale_aspect: 1.0,
-            color: WHITE
-        };
+        let font: Font = *self.assets.font(
+            if self.basic_scene { Assets::TTF_RETRO } 
+            else { Assets::TTF_ELEGANT } 
+        );
 
         // Draw status text
         {
+            const LINE_SPACING: f32 = 16.0;
+            const PLAYER_SPACING: f32 = 100.0;
+
+            let title_font_size: u16 = if self.basic_scene { 30 } else { 34 };
+            let font_size: u16 = if self.basic_scene { 42 } else { 44 };
+            let status_panel: Rect = Rect::new(
+                playfield.w, 0.0, screen_width() - playfield.w, screen_height() 
+             );
+            let mut top: f32 = 50.0;
+
             for i in 0..self.player_count {
-                let text = "Score: 0000000";
-                text_params.color = self.players[i].color;
-                let dimension = measure_text(&text, Some(text_params.font), 
-                    text_params.font_size, text_params.font_scale);
-                let x1 = 32.0;
-                let x2 = width - 32.0 - dimension.width;
-                let y1 = height - 55.0; 
-                let y2 = height - 25.0; 
-                match i {
-                    0 => {
-                        draw_text_ex(&format!("Length: {}", self.players[i].length())[..],
-                            x2, y1, text_params);
-                        draw_text_ex(&format!("Score: {:07}", self.scores[i])[..],
-                            x2, y2, text_params);
-                    },
-                    _ => {
-                        draw_text_ex(&format!("Length: {}", self.players[i].length())[..],
-                            x1, y1, text_params);
-                        draw_text_ex(&format!("Score: {:07}", self.scores[i])[..],
-                            x1, y2, text_params);
-                    }
+                let color: &Color = &self.players[i].color;
+                self.labels_score_title[i]
+                    .set_color(color)
+                    .set_font(&font, title_font_size)
+                    .set_text("Score")
+                    .center(None, Some(top), &status_panel)
+                    .draw(); 
+
+                self.labels_score[i]
+                    .set_color(color)
+                    .set_font(&font, font_size)
+                    .set_text(&format!("{:07}", self.scores[i]).as_str())
+                    .center(None, Some(self.labels_score_title[i].bottom() + LINE_SPACING), 
+                            &status_panel)
+                    .draw(); 
+
+                self.labels_length_title[i]
+                    .set_color(color)
+                    .set_font(&font, title_font_size)
+                    .set_text("Length")
+                    .center(None, Some(self.labels_score[i].bottom() + 2.0 * LINE_SPACING), 
+                            &status_panel)
+                    .draw(); 
+
+                self.labels_length[i]
+                    .set_color(color)
+                    .set_font(&font, font_size)
+                    .set_text(&format!("{}", self.players[i].length()).as_str())
+                    .center(None, Some(self.labels_length_title[i].bottom() + LINE_SPACING), 
+                            &status_panel)
+                    .draw(); 
+
+                if i == 0 {
+                    top = self.labels_length[i].bottom() + PLAYER_SPACING;
                 }
             }
         }
 
-        text_params.font_size = 48;
-        text_params.color = WHITE;
+        // Draw announcements
+        let announcement_font_size: u16 = if self.basic_scene { 48 } else { 50 };
+
+        self.label_announce
+            .set_font(&font, announcement_font_size)
+            .set_color(&WHITE)
+            .set_shadow(&Vec2::new(2.0, 2.0), &Color::new(1.0, 0.0, 0.3, 1.0));
 
         // Draw get ready text
         if self.substate == LevelState::GetReady {
-            let text = "Get Ready";
-            let pos = text_center_pos(text, text_params, width, height);
-            draw_text_ex(text, pos.x, pos.y, text_params);
+            self.label_announce
+                .set_text("Get Ready")
+                .center(None, None, &playfield)
+                .draw();
         } 
 
         // Draw game over text
         if self.substate == LevelState::GameOver {
-            let text = "Gameover";
-            let pos = text_center_pos(text, text_params, width, height);
-            draw_text_ex(text, pos.x, pos.y, text_params);
+            self.label_announce
+                .set_text("GameOver")
+                .center(None, None, &playfield)
+                .draw();
         }
         
     }

@@ -11,8 +11,9 @@ pub struct Apple {
 }
 
 impl Apple {
-    pub fn random_spawn(play_area: &Rect, players: &[Snake]) -> Apple {
-        let pos: Vec2;
+    pub fn random_spawn(play_area: &Rect, snakes: &[Snake]) -> Apple {
+        let mut pos: Vec2;
+        let mut retry_count: u32 = 0;
 
         loop {
             // Randomize position inside playing field excluding borders
@@ -22,10 +23,16 @@ impl Apple {
             pos = Vec2::new(x + play_area.x, y + play_area.y); 
 
             // Do not spawn on top of the snake
-            for player in players {
-                if player.is_position_taken(&pos) {
-                    continue;
+            let mut overlap_snakes: bool = false;
+            for snake in snakes {
+                if snake.has_position(&pos) {
+                    overlap_snakes = true;
+                    break;
                 }
+            }
+            if overlap_snakes && retry_count < 20 {
+                retry_count += 1;
+                continue;
             }
 
             break;

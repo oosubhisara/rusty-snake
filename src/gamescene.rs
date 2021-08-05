@@ -87,6 +87,10 @@ impl GameScene {
         self.height
     }
 
+    pub fn grid_size(&self) -> f32 {
+        self.grid_size
+    }
+
     pub fn play_area(&self) -> Rect {
         Rect::new(1.0, 1.0, self.width - 2.0, self.height - 2.0)
     }

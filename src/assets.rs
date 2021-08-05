@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use macroquad::prelude::*;
@@ -50,38 +49,39 @@ impl Assets {
     }
 
     pub async fn load_from_bundle(&mut self) {
-        const image_toc: [[u32;2];4] = [
+        const IMAGE_TOC: [[u32;2];4] = [
             [96, 414],
             [510, 3337],
             [3847, 3665],
             [7512, 392]
         ];
             
-        const sound_toc: [[u32;2];4] = [
+        const SOUND_TOC: [[u32;2];4] = [
             [7904, 200260],
             [208164, 158398],
             [366562, 398468],
             [765030, 29878]
         ];
 
-        const font_toc: [[u32;2];2] = [
+        const FONT_TOC: [[u32;2];2] = [
             [794908, 8940],
             [803848, 20120]
         ];
 
         let mut bundle_file: File = File::open("game.dat").unwrap();
         let mut buf: Vec<u8> = Vec::new(); 
-        bundle_file.read_to_end(&mut buf);
+        let _bytes_read = bundle_file.read_to_end(&mut buf);
 
-        for info in image_toc { 
+        for info in IMAGE_TOC { 
             let slice_from: usize = info[0] as usize;
             let slice_to: usize = slice_from + info[1] as usize;
             let texture = Texture2D::from_file_with_format(&buf[slice_from..slice_to], 
                 Some(ImageFormat::Png));
+            texture.set_filter(FilterMode::Nearest);
             self.textures.push(texture);
         }
 
-        for info in sound_toc { 
+        for info in SOUND_TOC { 
             let slice_from: usize = info[0] as usize;
             let slice_to: usize = slice_from + info[1] as usize;
             let result = load_sound_from_bytes(&buf[slice_from..slice_to]).await;
@@ -91,7 +91,7 @@ impl Assets {
             }
         }
 
-        for info in font_toc { 
+        for info in FONT_TOC { 
             let slice_from: usize = info[0] as usize;
             let slice_to: usize = slice_from + info[1] as usize;
             let font = match load_ttf_font_from_bytes(&buf[slice_from..slice_to]) {

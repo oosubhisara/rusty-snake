@@ -3,17 +3,17 @@ mod gamestate;
 mod gamescene;
 mod snake;
 mod apple;
+mod label;
 mod common;
 
 use macroquad::prelude::*;
 use gamestate::*;
 
-const WINDOW_WIDTH: f32 = 800.0;
-const WINDOW_HEIGHT: f32 = 600.0;
-const WIDTH: f32 = 25.0;
-const HEIGHT: f32 = 16.0;
+const WINDOW_WIDTH: f32 = 960.0;
+const WINDOW_HEIGHT: f32 = 640.0;
+const WIDTH: f32 = 23.0;
+const HEIGHT: f32 = 20.0;
 const GRID_SIZE: f32 = 32.0;
-const STATUS_HEIGHT: i32 = 88;
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -35,8 +35,8 @@ async fn main() {
 fn window_conf() -> Conf {
     Conf {
         window_title: "Snake".to_owned(),
-        window_width: (WIDTH * GRID_SIZE) as i32,
-        window_height: (HEIGHT * GRID_SIZE) as i32 + STATUS_HEIGHT, 
+        window_width: (WINDOW_WIDTH) as i32,
+        window_height: (WINDOW_HEIGHT) as i32, 
         window_resizable: false,
         ..Default::default()
     }

@@ -80,12 +80,26 @@ pub fn opposite_dir(dir: Direction) -> Direction {
 
 
 pub fn text_center_pos(text: &str, text_params: TextParams,
-                           screen_w: f32, screen_h: f32) -> Vec2 {
+                       rect: &Rect) -> Vec2 {
     let dimension: TextDimensions = 
         measure_text(text, Some(text_params.font), text_params.font_size, 
                              1.0); 
-    Vec2::new(screen_w / 2.0 - dimension.width / 2.0,
-             screen_h / 2.0 - dimension.height / 2.0 
+    Vec2::new(rect.x + rect.w / 2.0 - dimension.width / 2.0,
+              rect.y + rect.h / 2.0 - dimension.height / 2.0 
              + dimension.offset_y / 2.0)
+}
+
+pub fn draw_text_center(text: &str, text_params: TextParams, shadow_color: Color, offset: f32,
+                        rect: &Rect) {
+    let dimension: TextDimensions = 
+        measure_text(text, Some(text_params.font), text_params.font_size, 
+                             1.0); 
+    let pos = Vec2::new(rect.x + rect.w / 2.0 - dimension.width / 2.0,
+              rect.y + rect.h / 2.0 - dimension.height / 2.0 
+             + dimension.offset_y / 2.0);
+    let mut shadow_params = text_params.clone();
+    shadow_params.color = shadow_color; 
+    draw_text_ex(text, pos.x + offset, pos.y + offset, shadow_params);
+    draw_text_ex(text, pos.x, pos.y, text_params);
 }
 
