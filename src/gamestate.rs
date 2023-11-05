@@ -69,7 +69,7 @@ impl GameState {
     }
 
     pub async fn load(&mut self) {
-        self.assets.load_from_bundle().await;
+        self.assets.load_from_datapak().await;
     }
 
     pub fn start(&self) {

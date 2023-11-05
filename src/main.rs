@@ -4,6 +4,7 @@ mod gamescene;
 mod snake;
 mod apple;
 mod label;
+mod datapakloader;
 mod common;
 
 use macroquad::prelude::*;

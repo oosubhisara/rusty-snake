@@ -1,7 +1,6 @@
-use std::fs::File;
-use std::io::Read;
 use macroquad::prelude::*;
 use macroquad::audio::*;
+use crate::datapakloader::DataPakLoader;
 
 
 pub struct Assets {
@@ -15,14 +14,17 @@ impl Assets {
     pub const TEX_SNAKE1: usize = 1;
     pub const TEX_SNAKE2: usize = 2;
     pub const TEX_WALL: usize = 3;
+    pub const TEXTURE_COUNT: usize = 4;
 
-    pub const SND_MOVE: usize = 0;
-    pub const SND_GET_READY: usize = 1;
-    pub const SND_DEAD: usize = 2;
-    pub const SND_EAT: usize = 3;
+    pub const SND_DEAD: usize = 0;
+    pub const SND_EAT: usize = 1;
+    pub const SND_GET_READY: usize = 2;
+    pub const SND_MOVE: usize = 3;
+    pub const SOUND_COUNT: usize = 4;
 
     pub const TTF_ELEGANT: usize = 0;
     pub const TTF_RETRO: usize = 1;
+    pub const FONT_COUNT: usize = 2;
 
     pub fn new() -> Assets {
         Assets { 
@@ -48,53 +50,29 @@ impl Assets {
         println!("Asset loaded.");
     }
 
-    pub async fn load_from_bundle(&mut self) {
-        const IMAGE_TOC: [[u32;2];4] = [
-            [96, 414],
-            [510, 3337],
-            [3847, 3665],
-            [7512, 392]
-        ];
-            
-        const SOUND_TOC: [[u32;2];4] = [
-            [7904, 200260],
-            [208164, 158398],
-            [366562, 398468],
-            [765030, 29878]
-        ];
+    pub async fn load_from_datapak(&mut self) {
+        let mut reader = DataPakLoader::new("data.pak");
 
-        const FONT_TOC: [[u32;2];2] = [
-            [794908, 8940],
-            [803848, 20120]
-        ];
-
-        let mut bundle_file: File = File::open("game.dat").unwrap();
-        let mut buf: Vec<u8> = Vec::new(); 
-        let _bytes_read = bundle_file.read_to_end(&mut buf);
-
-        for info in IMAGE_TOC { 
-            let slice_from: usize = info[0] as usize;
-            let slice_to: usize = slice_from + info[1] as usize;
-            let texture = Texture2D::from_file_with_format(&buf[slice_from..slice_to], 
+        for i in 0..Assets::TEXTURE_COUNT { 
+            println!("Loading image #{}", i + 1);
+            let texture = Texture2D::from_file_with_format(reader.load_image(i), 
                 Some(ImageFormat::Png));
             texture.set_filter(FilterMode::Nearest);
             self.textures.push(texture);
         }
 
-        for info in SOUND_TOC { 
-            let slice_from: usize = info[0] as usize;
-            let slice_to: usize = slice_from + info[1] as usize;
-            let result = load_sound_from_bytes(&buf[slice_from..slice_to]).await;
+        for i in 0..Assets::SOUND_COUNT { 
+            println!("Loading sound #{}", i + 1);
+            let result = load_sound_from_bytes(reader.load_sound(i)).await;
             match result {
                 Ok(sound) => self.sounds.push(sound),
                 Err(_e) => panic!("Error loading sound!")
             }
         }
 
-        for info in FONT_TOC { 
-            let slice_from: usize = info[0] as usize;
-            let slice_to: usize = slice_from + info[1] as usize;
-            let font = match load_ttf_font_from_bytes(&buf[slice_from..slice_to]) {
+        for i in 0..Assets::FONT_COUNT { 
+            println!("Loading font #{}", i + 1);
+            let font = match load_ttf_font_from_bytes(reader.load_font(i)) {
                 Ok(font) => font,
                 Err(_e) => panic!("Error loading font!")
             };

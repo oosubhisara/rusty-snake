@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.1
+Type=Application
+Categories=Game
+Name=Snake
+Comment=Snake Game
+Terminal=false
+Icon=/home/subhisara/projects/gamedev/rust/snake/dist/snake-linux/game/icon.png
+Exec=/home/subhisara/projects/gamedev/rust/snake/dist/snake-linux/game/snake
+Path=/home/subhisara/projects/gamedev/rust/snake/dist/snake-linux/game
+

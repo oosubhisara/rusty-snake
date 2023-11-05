@@ -1,0 +1,23 @@
+[images]
+path = "assets/images"
+files = [ "apple.png", "snake1.png", "snake2.png", "wall.png" ]
+
+[fonts]
+path = "assets/fonts"
+files = [ "dpcomic.ttf", "gomarice_no_continue.ttf" ]
+
+[sounds]
+path = "assets/sounds"
+files = [ "dead.wav", "eat.wav", "get_ready.wav", "move.wav" ]
+
+[maps]
+path = "assets/maps"
+files = [] 
+
+[configs]
+path = "assets/configs"
+files = [] 
+
+[scripts]
+path = "assets/scripts"
+files = [] 
