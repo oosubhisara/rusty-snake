@@ -1,7 +1,11 @@
-# snake-rust
+# rusty-snake
 Snake game written in Rust / macroquad
 
-![Screenshot](snake-rust-screenshot.png)
+<p align="center">
+<img src="snake-rust-screenshot.png" alt="screenshot" width="500" />
+</p>
+
+
 
 ## dependencies
 - Rust (compiler)
